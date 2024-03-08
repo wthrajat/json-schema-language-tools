@@ -32,5 +32,27 @@
     "onLanguage:json"
   ],
   "contributes": {
+    "configuration": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "Configuration for JSON Schema Language Server",
+      "description": "Settings to customize the behavior of your JSON Schema Language Server",
+      "type": "object",
+      "jsonSchemaLanguageServer": {
+        "type": "object",
+        "description": "Specific settings for this language server",
+        "properties": {
+          "enableDetailedErrors": {
+            "type": "boolean",
+            "description": "Whether to provide additional detail in error messages"
+          },
+          "schemaValidationSeverity": {
+            "type": "string",
+            "enum": ["error", "warning", "information", "hint"],
+            "description": "The severity level to use for schema validation issues"
+          }
+        }
+      }
+    }
   }
-}
+  }
+

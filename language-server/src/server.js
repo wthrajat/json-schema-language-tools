@@ -38,9 +38,12 @@ connection.console.log("Starting JSON Schema service ...");
 
 let hasWorkspaceFolderCapability = false;
 let hasWorkspaceWatchCapability = false;
+let hasConfigurationCapability = false;
 
 connection.onInitialize(({ capabilities, workspaceFolders }) => {
   connection.console.log("Initializing JSON Schema service ...");
+  hasConfigurationCapability = !!capabilities.workspace?.configuration;
+  connection.console.log(hasConfigurationCapability);
 
   if (workspaceFolders) {
     addWorkspaceFolders(workspaceFolders);
@@ -70,6 +73,30 @@ connection.onInitialize(({ capabilities, workspaceFolders }) => {
 
   return { capabilities: serverCapabilities };
 });
+
+const documentSettings = new Map(); // Consider a Map for cache
+const globalSettings = {
+  enableDetailedErrors: false,
+  schemaValidationSeverity: "error"
+}; // Sensible defaults
+
+
+function getDocumentSettings(resource) {
+  if (!hasConfigurationCapability) {
+    return Promise.resolve(globalSettings); // Replace with appropriate defaults
+  }
+
+  let result = documentSettings.get(resource);
+  if (!result) {
+    result = connection.workspace.getConfiguration({
+      scopeUri: resource,
+      section: "jsonSchemaLanguageServer"
+    });
+    documentSettings.set(resource, result);
+  }
+  connection.console.log(JSON.stringify(result));
+  return result;
+}
 
 connection.onInitialized(async () => {
   if (hasWorkspaceWatchCapability) {
@@ -146,7 +173,7 @@ documents.onDidChangeContent(async ({ document }) => {
 
 const validateSchema = async (document) => {
   const diagnostics = [];
-
+  const settings = await getDocumentSettings(document.uri);
   const instance = JsoncInstance.fromTextDocument(document);
   const $schema = instance.get("#/$schema");
   const contextDialectUri = $schema?.value();
@@ -167,7 +194,7 @@ const validateSchema = async (document) => {
 
     if (!output.valid) {
       for await (const [instance, message] of invalidNodes(output)) {
-        diagnostics.push(buildDiagnostic(instance, message));
+        diagnostics.push(buildDiagnostic(instance, message, settings.schemaValidationSeverity === "warning" ? DiagnosticSeverity.Warning : DiagnosticSeverity.Error));
       }
     }
 
