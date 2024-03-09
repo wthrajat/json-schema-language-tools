@@ -75,7 +75,7 @@ connection.onInitialize(({ capabilities, workspaceFolders }) => {
 });
 
 const documentSettings = new Map(); // Consider a Map for cache
-const globalSettings = {
+let globalSettings = {
   enableDetailedErrors: false,
   schemaValidationSeverity: "error"
 }; // Sensible defaults
@@ -174,6 +174,7 @@ documents.onDidChangeContent(async ({ document }) => {
 const validateSchema = async (document) => {
   const diagnostics = [];
   const settings = await getDocumentSettings(document.uri);
+  connection.console.log(JSON.stringify(settings));
   const instance = JsoncInstance.fromTextDocument(document);
   const $schema = instance.get("#/$schema");
   const contextDialectUri = $schema?.value();
@@ -209,6 +210,21 @@ const validateSchema = async (document) => {
 
   connection.sendDiagnostics({ uri: document.uri, diagnostics });
 };
+
+// Clear cached document settings when configuration changes
+connection.onDidChangeConfiguration((change) => {
+  if (hasConfigurationCapability) {
+    // Reset all cached document settings
+    documentSettings.clear();
+  } else {
+    // Update global settings with new values from configuration change
+    globalSettings = change.settings.jsonSchemaLanguageServer || globalSettings;
+  }
+
+  // Revalidate all open text documents
+  documents.all().forEach((document) => validateSchema(document));
+});
+
 
 const buildDiagnostic = (instance, message, severity = DiagnosticSeverity.Error, tags = []) => {
   return {
