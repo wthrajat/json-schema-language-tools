@@ -46,7 +46,7 @@ connection.onInitialize(({ capabilities, workspaceFolders }) => {
   hasConfigurationCapability = !!(
     capabilities.workspace && !!capabilities.workspace.configuration
   );
-  connection.console.log(hasConfigurationCapability);
+  connection.console.log(" do we have config capability bro --- " + hasConfigurationCapability);
 
   if (workspaceFolders) {
     addWorkspaceFolders(workspaceFolders);
@@ -84,20 +84,22 @@ let globalSettings = {
 }; // Sensible defaults
 
 
-function getDocumentSettings(resource) {
+async function getDocumentSettings(resource) {
   if (!hasConfigurationCapability) {
-    return Promise.resolve(globalSettings); // Replace with appropriate defaults
+    return globalSettings; // Replace with appropriate defaults
   }
-
   let result = documentSettings.get(resource);
   if (!result) {
-    result = connection.workspace.getConfiguration({
+    result = await connection.workspace.getConfiguration({
       scopeUri: resource,
       section: "jsonSchemaLanguageServer"
     });
+    connection.console.log("seee diya here we get our configs:");
+    connection.console.log(" --- config start ---");
+    connection.console.log(JSON.stringify(result));
+    connection.console.log(" --- config end ---");
     documentSettings.set(resource, result);
   }
-  connection.console.log(JSON.stringify(result));
   return result;
 }
 
@@ -180,7 +182,11 @@ documents.onDidChangeContent(async ({ document }) => {
 const validateSchema = async (document) => {
   const diagnostics = [];
   const settings = await getDocumentSettings(document.uri);
+  connection.console.log(" --- hmm settings should be default from the getDocumentSettings async fn (default config) --- ");
+  connection.console.log(" ----- logging settings here START ----- ");
   connection.console.log(JSON.stringify(settings));
+  connection.console.log(" ----- logging settings here END ----- ");
+
   const instance = JsoncInstance.fromTextDocument(document);
   const $schema = instance.get("#/$schema");
   const contextDialectUri = $schema?.value();
