@@ -5,6 +5,7 @@ import {
   DiagnosticTag,
   DidChangeWatchedFilesNotification,
   ProposedFeatures,
+  DidChangeConfigurationNotification,
   SemanticTokensBuilder,
   TextDocuments,
   TextDocumentSyncKind
@@ -42,7 +43,9 @@ let hasConfigurationCapability = false;
 
 connection.onInitialize(({ capabilities, workspaceFolders }) => {
   connection.console.log("Initializing JSON Schema service ...");
-  hasConfigurationCapability = !!capabilities.workspace?.configuration;
+  hasConfigurationCapability = !!(
+    capabilities.workspace && !!capabilities.workspace.configuration
+  );
   connection.console.log(hasConfigurationCapability);
 
   if (workspaceFolders) {
@@ -99,6 +102,9 @@ function getDocumentSettings(resource) {
 }
 
 connection.onInitialized(async () => {
+  if (hasConfigurationCapability) {
+    connection.client.register(DidChangeConfigurationNotification.type, undefined);
+  }
   if (hasWorkspaceWatchCapability) {
     connection.client.register(DidChangeWatchedFilesNotification.type, {
       watchers: [
